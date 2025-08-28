@@ -12,4 +12,6 @@ def GreetingMessage(req_body):
         greeting = WELCOME_MESSAGE
     else:
         greeting = None
+    return greeting
 
+# Hello world
