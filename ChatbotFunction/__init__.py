@@ -1,32 +1,56 @@
-from config import get_client
+from config import get_client,get_CosmosDB
 import azure.functions as func
 from helpers.ErrorHandling import UserMessageError, SystemError
 from Services.OpenAiServices import AiReply, ReplyToUser
-from helpers.MessageFormatter import FormatMessage,GreetingMessage
+from helpers.MessageFormatter import  format_conversation, CreateNewId, manage_context, ConversationHistory
+from Services.CosmosDbServices import SaveConversation
+import json
 
-# Initialize the AzureOpenAI client with your deployment details
+
+
+container=get_CosmosDB()
+
 client = get_client()
-
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
     try:
         req_body = req.get_json()
         user_message = req_body.get("message")
+        session_id = req_body.get("sessionId")  
 
         if not user_message:
             return UserMessageError
-        
+
         if user_message.strip().lower() in ['exit', 'quit', 'bye']:
             return ReplyToUser("Goodbye! Have a nice day 🙂")
+
+        if not session_id:
+            session_id = CreateNewId()
+
+
+        conversation, document_id=ConversationHistory(session_id=session_id, container=container)
+
+        conversation.append({"role": "user", "content": user_message})
+
         
+        conversation = manage_context(conversation, max_messages=10)
 
-        greeting=GreetingMessage(req_body=req_body)
         
-        ai_message = AiReply(client=client, user_message=user_message)
+        
+        ai_message = AiReply(client=client, conversation=conversation)  
 
-        full_message = FormatMessage(Greetings=greeting, aiMessage=ai_message)
+        
+        conversation.append({"role": "bot", "content": ai_message})
 
-        return ReplyToUser(full_message)
+        
+        SaveConversation(container, document_id, session_id, conversation)
+
+        
+        conversation_history = format_conversation(conversation)
+
+        return ReplyToUser(ai_message,session_id, conversation_history)
+        
 
     except Exception as e:
         return SystemError(e)
+
