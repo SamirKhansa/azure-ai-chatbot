@@ -7,9 +7,6 @@ from helpers.MessageFormatter import FormatConversation, CreateNewId, SummarizeL
 from Services.CosmosDbServices import SaveConversation
 from Services.CosmosDbServices import RetreiveRelevantChunks
 
-
-
-
 ChatContainer = get_CosmosDB(container_name="Sessions", partitionKey="/sessionId")  
 EmbeddingsContainer = get_CosmosDB(container_name="Documents", partitionKey="/id")  
 
@@ -41,9 +38,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         
         
         query_embedding = TextEmbedding(EmbeddingClient=EmbeddingClient, message=user_message)
-        print("0")
+        
         top_chunks = RetreiveRelevantChunks(embeddings_container=EmbeddingsContainer,query_embedding=query_embedding, top_k=3)
-        print("1")
+        
 
 
         context_prompt = "\n\n".join(top_chunks)
