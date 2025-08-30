@@ -132,7 +132,7 @@ curl -X POST "https://<your-function-app>.azurewebsites.net/api/ChatbotFunction"
 ```
 ### 8. Screenshots
 - AI response
-![AI response](/Assets/Kings%20Gambit%20fact.JPG)
+![AI response](/Assets/KingsGambitFact.JPG)
 - User Input Irrelivant information
 ![Irrelivant Information](/Assets/Speciality.JPG)
 - User Input Error
