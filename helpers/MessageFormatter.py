@@ -1,10 +1,9 @@
 
 import uuid
-from PyPDF2 import PdfReader
+
 
 def summarize_messages(messages, client):
     from Services.OpenAiServices import AiReply
-    # Convert messages to a single conversation string
     text = ""
     for msg in messages:
         text += msg['role'] + ": " + msg['content'] + "\n"
@@ -21,12 +20,12 @@ def FormatConversation(conversation):
     history = []
     for msg in conversation:
         if msg["role"] == "user":
-            history.append({"user": msg["content"]})
+            history.append({"user": msg["Content"]})
         elif msg["role"] == "bot":
             if history and "ai" not in history[-1]:
-                history[-1]["ai"] = msg["content"]
+                history[-1]["ai"] = msg["Content"]
             else:
-                history.append({"ai": msg["content"]})
+                history.append({"ai": msg["Content"]})
     return history
 
 
@@ -42,33 +41,14 @@ def SummarizeLongHistory(conversation, max_messages=10):
     return [{"role": "system", "content": f"Summary of previous conversation: {summary_text}"}] + conversation[-max_messages:]
 
 
-def ConversationHistory(session_id, container, user_message):
-    query = f"SELECT * FROM c WHERE c.sessionId = '{session_id}'"
-    items = list(container.query_items(query=query, enable_cross_partition_query=True))
 
-    if items:
-        conversation = items[0]["messages"]
-        doc_id = items[0]["id"]
-    else:
-        conversation = []
-        doc_id = CreateNewId()
-    
-    conversation.append({"role": "user", "content": user_message})
-    conversation = SummarizeLongHistory(conversation, max_messages=10)
-
-    return conversation,doc_id
 
 
 
 def CreateNewId():
     return str(uuid.uuid4())
 
-def ExtractTextFromPDF(pdf_path):
-    reader = PdfReader(pdf_path)
-    text = ""
-    for page in reader.pages:
-        text += page.extract_text() + "\n"
-    return text
+
 
 def chunkText(text, chunk_size=500):
     words = text.split()
@@ -76,3 +56,23 @@ def chunkText(text, chunk_size=500):
     for i in range(0, len(words), chunk_size):
         chunks.append(" ".join(words[i:i+chunk_size]))
     return chunks
+
+
+
+
+def AddingRefrencesToAiMessage(results, ai_message):
+    unique_sources = set()
+    unique_chunks = []
+    sources_list = []
+    for result in results:
+        source = result.get("resource")
+        if source not in unique_sources:
+            unique_sources.add(source)
+            unique_chunks.append(result["Content"])
+            if source:  
+                sources_list.append(source)
+    
+    if sources_list:
+        return f"{ai_message}\n\nReferences:\n" + "\n".join(sources_list)
+    else:
+        return ai_message
