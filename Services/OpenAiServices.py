@@ -5,9 +5,16 @@ import azure.functions as func
 def AiReply(client, conversation, context=None):
 
     if not conversation:
-        conversation = [{"role": "user", "content": "Hello"}]  
+        conversation = [{"role": "user", "Content": "Hello"}]  
 
-    system_message = "You are a helpful chatbot that is specialized as a chess instructor, you only answer questions related to chess."
+    system_message = (
+        "You are a highly knowledgeable and professional chess instructor AI. "
+        "Your role is to provide clear, accurate, and insightful guidance on all aspects of chess, "
+        "including rules, strategies, tactics, openings, middlegame concepts, and endgames. "
+        "You must only respond to questions directly related to chess and politely decline unrelated topics. "
+        "Ensure that your explanations are tailored to the user's skill level, whether beginner, intermediate, or advanced, "
+        "and maintain a supportive, educational, and professional tone at all times."
+    )
     
     
     if context:
@@ -18,7 +25,7 @@ def AiReply(client, conversation, context=None):
     
     for msg in conversation[-6:]:
         role = "assistant" if msg["role"] == "bot" else "user"
-        messages.append({"role": role, "content": msg["content"]})
+        messages.append({"role": role, "content": msg["Content"]})
 
     
     response = client.chat.completions.create(
@@ -45,6 +52,7 @@ def ReplyToUser(ai_message, session_id, conversation_history):
         mimetype="application/json"
     )
 
+
 def TextEmbedding(EmbeddingClient, message):
      query_embedding_resp = EmbeddingClient.embeddings.create(
             model="text-embedding-3-small",
@@ -52,6 +60,10 @@ def TextEmbedding(EmbeddingClient, message):
         )
         
      return query_embedding_resp.data[0].embedding
+
+
+
+
 
 def ChunkDocumentEmbeddings(text_chunks, client):
     embeddings = []
@@ -64,20 +76,9 @@ def ChunkDocumentEmbeddings(text_chunks, client):
     return embeddings
 
 
-def UploadingDocuments(EmbeddingClient,EmbeddingsContainer,file_path):
-    from helpers.MessageFormatter import ExtractTextFromPDF, chunkText
-    document_text=ExtractTextFromPDF(file_path)
-    chunks =chunkText(document_text)
-    embeddings=ChunkDocumentEmbeddings(chunks, EmbeddingClient)
-    for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
-        EmbeddingsContainer.upsert_item({
-            "id": f"chunk_{i}",
-            "text": chunk,
-            "embedding": embedding,
-            "metadata": {
-                "document": "The Journey of Jane Doe.pdf"
-            }
-        })
+
+
+
 
 
     
