@@ -9,6 +9,10 @@ This document describes the architecture, data flow, and setup instructions for 
 
 - Retrieving information from documents using RAG (Retrieval-Augmented Generation)
 
+- Processing and extracting content from PDFs, text files, and images using Azure Document Intelligence
+
+- Performing vector similarity search with Azure AI Search to retrieve the most relevant chunks
+
 - Operating with a specific role or prompt to guide responses
 
 - Being deployed to Azure for cloud accessibility
@@ -21,24 +25,29 @@ This document describes the architecture, data flow, and setup instructions for 
 | **Resource Group** | A container that holds all project resources, making them easier to manage and organize. |
 | **Function App** | Hosts Python code, accessible via HTTP requests, allowing the chatbot to run independently of a local machine. |
 | **CosmosDB** | Hosts chat history that is divided by every user unique session id. Furthermore, this database also hosts the documents with their embeddings.   |
-| **Azure AI Foundaty Resource** | Contains the GPT-4o deployment, gpt text-embedding and handles AI processing. |
+| **Azure AI Foundary Resource** | Contains the GPT-4o deployment, gpt text-embedding and handles AI processing. |
 | **GPT-4o Deployment** | AI model that generates responses based on user input and developer-defined prompts. |
 | **text-embedding-3-small** | AI model that generates an embedding  based on the text provided. |
+| **Azure Document Intelligence** | Extracts text from PDFs, scanned documents, and images, preparing them for chunking and embedding. |
+| **Azure AI Search** | Stores document chunks and embeddings, supports similarity (vector) search to retrieve relevant knowledge. |
 
 
 ---
 
 ## 3. Architecture Diagram
-![Chatbot Architecture](/Assets/V1.1.png)
+![Chatbot Architecture](/Assets/Architecturev2.jpg)
 
 ---
 
 ## 4. Data Flow and Component Interactions
 1. **User → Function App:** The user sends an HTTP request containing their message. 
-2. **Function App -> CosmosDb Resource:**  Retreives the chunks of documents from the database and the chat history if it exsists from the user.
+2. **Function APP -> CosmosDb Resource:** Retrieves previous chat history for the session.
+3. **Function App -> Document Intelligence:** Previously, new documents would be uploaded (PDFs, images, handwritten notes), Document Intelligence extracts and cleans the text.
+4. **Function App:** The script then divides the text retreived from document intelligence into multiple chunks.
+4. **Function App → Embeddings Model (text-embedding-3-small):** Every chunk are converted into embeddings using text-embedding-3-small.
 3. **Function App → Azure AI Foundary Resource:** The Function App hosts the code, including prompts that instruct GPT-4o how to respond. Furhtermore, Azure AI Foundary has also deployed a model called text-embedding-3-small to turn text into embedding.  
 4. **Azure AI Foundary → text-embedding-3-small:** text-embedding-3-small processes the user message and transforms it into an embedding to be used with the embedding of the chunks. This model is also used when a new document is saved, divided into chunks, turned into an embedding and saved to CosmosDB.  
-5. **Azure AI Foundary**: After retriving the embedding of the user question, the model then uses cosine similarity to provide GPT 4o model the top 3 most relavent chunks of documents that could contain the ansewer.
+5. **Azure AI Foundary- AI Search**: The script uses AI Search to retreive the most relavent chunks of document with the prespective of the user question.
 6. **Azure AI Foundary → GPT-4o Deployment:** GPT-4o processes the user message, provided chunks of document and prompt to generate a response.  
 7. **GPT-4o Deployment → Function App:** The generated response is sent back to the Function App.
 8. **GPT-4o Deployment → Chosmos Db:** The generated response is saved in Cosmos DB chatHistory of the user .  
@@ -53,6 +62,10 @@ This document describes the architecture, data flow, and setup instructions for 
 - Prompt customization for system role (topic-specific responses)
 
 - RAG knowledgebase for document-based answers
+
+- Vector similarity search for accurate retrieval
+
+- References to original document sources in chatbot replies
 
 - Deployed solution in Azure for live access
 --
@@ -83,10 +96,15 @@ This document describes the architecture, data flow, and setup instructions for 
 2. Create a **Resource Group**. Ensure all resources are in the same region.  
 3. Create an **Azure OpenAI resource** in the same Resource Group and region.  
 4. Open **Azure AI Foundry** to deploy the GPT-4o model and text-embedding-3-small.  
-6. Once GPT-4o and text-embedding-3-small is deployed, copy the **key, endpoint, and model version**.  
-7. Paste these values into Visual Studio Code to connect the model.
-8. Create a CosmosDB resource, set the resource region similar to the region of the Resource group.
-9. Create two containers in the database. The first container name should be Documents with partition key /id and the second container name is Sessions with partition key /sessions
+5. Create an Azure Document Intelligence resource for extracting text from PDFs, images, and handwritten files.
+6. Create an Azure AI Search resource (Basic or Standard tier, not Free) with vector search enabled.
+7. Define an index with fields like:
+    - id (Edm.String, key)
+    - Content (Edm.String, retrievable)
+    - resource (Edm.String, retrievable)
+    - Embeddings (Collection(Edm.Single), vector field)
+8. Create a Cosmos DB resource with database name ChatBot02 and add one container called Sessions with partition key /sessionId.  
+
 
 ### Local Setup
 1. Clone the repository:
@@ -127,12 +145,13 @@ curl -X POST "https://<your-function-app>.azurewebsites.net/api/ChatbotFunction"
 **Expected Response**
 ```
 {
-  "reply": "Certainly! Here's a fascinating fact about the King’s Gambit:\n\nThe King’s Gambit was famously described as \"the most beautiful of all gambits\" by Wilhelm Steinitz, the first World Chess Champion. Its daring nature and romantic character made it the hallmark of the 19th-century Romantic Era of chess. In fact, one of the most celebrated games in chess history, Adolf Anderssen's \"Immortal Game\" (1851), featured the King’s Gambit. Anderssen sacrificed multiple pieces, including both rooks and his queen, to deliver a stunning checkmate—showcasing the opening's immense attacking potential and creative brilliance. \n\nEven today, the King’s Gambit is admired for its boldness and ability to create memorable, tactical battles!"
+  "sessionId": "08ab8512-7e99-472d-a521-d8507f7c2728",
+  "reply": "The \"most favorite\" chess opening can vary depending on the player's style, level of experience, and even trends in the chess world. However, some openings are consistently popular across different levels of play due to their strategic richness, flexibility, and proven effectiveness. Below are some of the most commonly favored openings:\n\n---\n\n### **For White:**\n1. **Ruy-Lopez (Spanish Opening)**:  \n   - Moves: 1.e4 e5 2.Nf3 Nc6 3.Bb5  \n   - Why it's popular: The Ruy-Lopez is one of the oldest and most respected openings in chess. It focuses on rapid development and central control while applying early pressure on Black's position. It offers both sharp and strategic lines, making it appealing to players of all styles.\n\n2. **Italian Game**:  \n   - Moves: 1.e4 e5 2.Nf3 Nc6 3.Bc4  \n   - Why it's popular: Known for its straightforward development and early focus on the center, the Italian Game is ideal for beginners and intermediate players. It can lead to both aggressive attacks and slower, maneuvering battles.\n\n3. **Queen's Gambit**:  \n   - Moves: 1.d4 d5 2.c4  \n   - Why it's popular: The Queen's Gambit is a classical opening that emphasizes central control and long-term positional play. It remains a favorite at all levels, including world championship matches, due to its strategic depth and flexibility.\n\n4. **London System**:  \n   - Moves: 1.d4 followed by 2.Nf3 and 3.Bf4  \n   - Why it's popular: The London System is easy to learn and avoids heavy theoretical preparation. It offers a solid pawn structure and straightforward development, making it a favorite among club players.\n\n5. **English Opening**:  \n   - Moves: 1.c4  \n   - Why it's popular: The English Opening allows\n\nReferences:\nhttps://en.wikipedia.org/wiki/Chess_opening?utm_source=chatgpt.com"
 }
 ```
 ### 8. Screenshots
 - AI response
-![AI response](/Assets/KingsGambitFact.JPG)
+![AI response](/Assets/ChessOpenings.JPG)
 - User Input Irrelivant information
 ![Irrelivant Information](/Assets/Speciality.JPG)
 - User Input Error
