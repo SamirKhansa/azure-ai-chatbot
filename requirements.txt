@@ -2,3 +2,5 @@ azure-functions
 openai
 azure-cosmos
 requests  
+azure-ai-documentintelligence
+azure-search-documents
