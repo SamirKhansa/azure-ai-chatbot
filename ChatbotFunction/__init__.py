@@ -1,14 +1,14 @@
 from keys import GPT4O_KEY,EMBEDDING_KEY, GPT4O_VERSION, EMBEDDING_VERSION, EMBEDDING_ENDPOINT, GPT4O_ENDPOINT
-from config import get_client, get_CosmosDB
+from config import get_client, get_CosmosDB, SearchClient1
 import azure.functions as func
 from helpers.ErrorHandling import UserMessageError, SystemError
 from Services.OpenAiServices import AiReply, ReplyToUser, TextEmbedding
-from helpers.MessageFormatter import FormatConversation, CreateNewId, SummarizeLongHistory, ConversationHistory
-from Services.CosmosDbServices import SaveConversation
-from Services.CosmosDbServices import RetreiveRelevantChunks
+from helpers.MessageFormatter import FormatConversation, CreateNewId, AddingRefrencesToAiMessage
+from Services.CosmosDbServices import SaveConversation, ConversationHistory
+from Services.AiSearchServices import RetreiveRelevantChunks
 
 ChatContainer = get_CosmosDB(container_name="Sessions", partitionKey="/sessionId")  
-EmbeddingsContainer = get_CosmosDB(container_name="Documents", partitionKey="/id")  
+search_client=SearchClient1()
 
 
 GPT4oClient = get_client(KEY=GPT4O_KEY,ENDPOINT=GPT4O_ENDPOINT, VERSION=GPT4O_VERSION )
@@ -24,7 +24,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
 
         if not user_message:
-            return UserMessageError
+            return UserMessageError()
 
         if user_message.strip().lower() in ['exit', 'quit', 'bye']:
             return ReplyToUser("Goodbye! Have a nice day 🙂")
@@ -39,16 +39,30 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         
         query_embedding = TextEmbedding(EmbeddingClient=EmbeddingClient, message=user_message)
         
-        top_chunks = RetreiveRelevantChunks(embeddings_container=EmbeddingsContainer,query_embedding=query_embedding, top_k=3)
+        results = RetreiveRelevantChunks(search_client=search_client,query_embedding=query_embedding, top_k=3)
+        
         
 
 
-        context_prompt = "\n\n".join(top_chunks)
-        ai_message = AiReply(client=GPT4oClient, conversation=conversation, context=context_prompt)
+        
+        retrieved_texts = [result["Content"] for result in results]
+        
+        context_prompt = "\n\n".join(retrieved_texts)
+        
 
-        conversation.append({"role": "bot", "content": ai_message})
+        ai_message = AiReply(client=GPT4oClient, conversation=conversation, context=context_prompt)
+        
+        ai_message=AddingRefrencesToAiMessage(results=results, ai_message=ai_message)
+       
+
+
+        
+        conversation.append({"role": "bot", "Content": ai_message})
+        
         SaveConversation(ChatContainer, document_id, session_id, conversation)
+        
         conversation_history = FormatConversation(conversation)
+        
         
         
 
