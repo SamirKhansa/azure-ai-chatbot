@@ -1,6 +1,6 @@
 from openai import AzureOpenAI
 
-from keys import COSMOS_ENDPOINT, COSMOS_KEY, DATABASE_NAME,SEARCH_ENDPOINT,SEARCH_KEY,INDEX_NAME, DI_ENDPOINT, DI_KEY, CONTAINER_NAME
+from keys import COSMOS_ENDPOINT, COSMOS_KEY, DATABASE_NAME,SEARCH_ENDPOINT,SEARCH_KEY,INDEX_NAME, DI_ENDPOINT, DI_KEY, SPEECH_KEY, SPEECH_ENDPOINT, SPEECH_REGION
 from azure.cosmos import CosmosClient, PartitionKey
 
 from azure.core.credentials import AzureKeyCredential
@@ -9,6 +9,8 @@ from azure.ai.documentintelligence import DocumentIntelligenceClient
 
 from azure.core.credentials import AzureKeyCredential
 from azure.search.documents import SearchClient
+
+import azure.cognitiveservices.speech as speechsdk
 
 
 def get_client(KEY,VERSION,ENDPOINT):
@@ -53,3 +55,8 @@ def DIClient():
         credential=AzureKeyCredential(DI_KEY),
     )
    
+
+
+def SpeechClient():
+    speech_config = speechsdk.SpeechConfig(subscription=SPEECH_KEY, region=SPEECH_REGION)
+    return speech_config
