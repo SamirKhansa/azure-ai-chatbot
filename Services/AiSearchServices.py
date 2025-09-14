@@ -1,7 +1,7 @@
 def RetreiveRelevantChunks(search_client, query_embedding, top_k=3):
     results = search_client.search(
         search_text="*", 
-        vector_queries=[  # notice the list
+        vector_queries=[  
             {
                 "vector": query_embedding,
                 "fields": "Embeddings", 
@@ -16,10 +16,6 @@ def RetreiveRelevantChunks(search_client, query_embedding, top_k=3):
 
 
 def UploadingDocuments(search_client, chunks, embeddings, Resource):
-    # Extract text using document intelligence
-    #Chunk the text into 500 words
-    # vectorize every chunk 
-    # Upload the the chunks with the document into AI Search
     search_documents = []
     for i, chunk in enumerate(chunks):
         doc = {
