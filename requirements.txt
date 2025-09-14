@@ -4,3 +4,4 @@ azure-cosmos
 requests  
 azure-ai-documentintelligence
 azure-search-documents
+azure-cognitiveservices-speech
