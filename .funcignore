@@ -1,1 +1,21 @@
-.venv
+# Virtual environment
+.venv/
+
+# VS Code config
+.vscode/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Local settings
+local.settings.json
+
+# Git files
+.git/
+.gitignore
+
+# Optional: logs, temp files
+*.log
+*.tmp
