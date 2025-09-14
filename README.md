@@ -5,17 +5,21 @@
 ## 1. Overview
 This document describes the architecture, data flow, and setup instructions for the Azure OpenAI chatbot implementation. The chatbot is capable of:
 
-- Maintaining persistent conversation history in Cosmos DB
+- Maintaining persistent conversation history in Cosmos DB.
 
-- Retrieving information from documents using RAG (Retrieval-Augmented Generation)
+- Retrieving information from documents using RAG (Retrieval-Augmented Generation).
 
-- Processing and extracting content from PDFs, text files, and images using Azure Document Intelligence
+- Processing and extracting content from PDFs, text files, and images using Azure Document Intelligence.
 
-- Performing vector similarity search with Azure AI Search to retrieve the most relevant chunks
+- Performing vector similarity search with Azure AI Search to retrieve the most relevant chunks.
 
-- Operating with a specific role or prompt to guide responses
+- Accepting voice input via the browser microphone, processed through Azure Speech-to-Text.
 
-- Being deployed to Azure for cloud accessibility
+- Returning audio from the AI message, processed through Azure text-to-Speech.
+
+- Operating with a specific role or prompt to guide responses.
+
+- Being deployed to Azure for cloud accessibility.
 
 ---
 
@@ -30,29 +34,32 @@ This document describes the architecture, data flow, and setup instructions for 
 | **text-embedding-3-small** | AI model that generates an embedding  based on the text provided. |
 | **Azure Document Intelligence** | Extracts text from PDFs, scanned documents, and images, preparing them for chunking and embedding. |
 | **Azure AI Search** | Stores document chunks and embeddings, supports similarity (vector) search to retrieve relevant knowledge. |
+| **Azure Speech Service** | Converts audio input (from the user’s microphone) into text for further processing. Furthermore, this service is also converting the ai message into an audio base 64. |
 
 
 ---
 
 ## 3. Architecture Diagram
-![Chatbot Architecture](/Assets/Architecturev2.jpg) 
+![Chatbot Architecture](/Assets/V1.3.jpg) 
 
 
 ---
 
 ## 4. Data Flow and Component Interactions
-1. **User → Function App:** The user sends an HTTP request containing their message. 
-2. **Function APP -> CosmosDb Resource:** Retrieves previous chat history for the session.
-3. **Function App -> Document Intelligence:** Previously, new documents would be uploaded (PDFs, images, handwritten notes), Document Intelligence extracts and cleans the text.
-4. **Function App:** The script then divides the text retreived from document intelligence into multiple chunks.
-4. **Function App → Embeddings Model (text-embedding-3-small):** Every chunk are converted into embeddings using text-embedding-3-small.
-3. **Function App → Azure AI Foundary Resource:** The Function App hosts the code, including prompts that instruct GPT-4o how to respond. Furhtermore, Azure AI Foundary has also deployed a model called text-embedding-3-small to turn text into embedding.  
-4. **Azure AI Foundary → text-embedding-3-small:** text-embedding-3-small processes the user message and transforms it into an embedding to be used with the embedding of the chunks. This model is also used when a new document is saved, divided into chunks, turned into an embedding and saved to CosmosDB.  
-5. **Azure AI Foundary- AI Search**: The script uses AI Search to retreive the most relavent chunks of document with the prespective of the user question.
-6. **Azure AI Foundary → GPT-4o Deployment:** GPT-4o processes the user message, provided chunks of document and prompt to generate a response.  
-7. **GPT-4o Deployment → Function App:** The generated response is sent back to the Function App.
-8. **GPT-4o Deployment → Chosmos Db:** The generated response is saved in Cosmos DB chatHistory of the user .  
-9. **Function App → User:** The Function App returns the response to the user immediately.
+1. **User → Function App:** The user sends an HTTP request containing their message. Furthermore, the user is also capable of recording an audio instead of writing a message, that is sent to the function app as base 64.
+2. **Function App → Azure Speech Service:** If the user decided to record an audio, this audio of base 64 is then sent to Azure Speech Service to extract the text from the audio.
+3. **Function APP -> CosmosDb Resource:** Retrieves previous chat history for the session.
+4. **Function App -> Document Intelligence:**The Admin is capable of uploading new documents, (PDFs, images, handwritten notes), Document Intelligence extracts and cleans the text.
+5. **Function App:** The script then divides the text retreived from document intelligence into multiple chunks.
+6. **Function App → Embeddings Model (text-embedding-3-small):** Every chunk are converted into embeddings using text-embedding-3-small.
+7. **Function App → Azure AI Foundary Resource:** The Function App hosts the code, including prompts that instruct GPT-4o how to respond. Furhtermore, Azure AI Foundary has also deployed a model called text-embedding-3-small to turn text into embedding.  
+8. **Azure AI Foundary → text-embedding-3-small:** text-embedding-3-small processes the user message and transforms it into an embedding to be used with the embedding of the chunks. This model is also used when a new document is saved, divided into chunks, turned into an embedding and saved to CosmosDB.  
+9. **Azure AI Foundary- AI Search**: The script uses AI Search to retreive the most relavent chunks of document with the prespective of the user question.
+10. **Azure AI Foundary → GPT-4o Deployment:** GPT-4o processes the user message, provided chunks of document and prompt to generate a response.  
+11. **GPT-4o Deployment → Function App:** The generated response is sent back to the Function App.
+12. **Function App → Azure Speech Service:** The generated response is sent to Azure Speech service to transform the text into an audio of base 64.
+12. **GPT-4o Deployment → Chosmos Db:** The generated response is saved in Cosmos DB chatHistory of the user .  
+13. **Function App → User:** The Function App returns the response to the user immediately.
 
 ---
 ## 5.Features Implemented
@@ -67,6 +74,10 @@ This document describes the architecture, data flow, and setup instructions for 
 - Vector similarity search for accurate retrieval
 
 - References to original document sources in chatbot replies
+
+- Speech-to-Text voice input support
+
+- Text-to-Speech voice output support
 
 - Deployed solution in Azure for live access
 --
