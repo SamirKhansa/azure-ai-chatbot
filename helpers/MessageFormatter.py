@@ -2,7 +2,7 @@
 import uuid
 
 
-def summarize_messages(messages, client):
+def summarize_messages(messages):
     from Services.OpenAiServices import AiReply
     text = ""
     for msg in messages:
@@ -11,8 +11,8 @@ def summarize_messages(messages, client):
     # Make a temporary conversation list
     conversation = [{"role": "user", "content": "Please summarize this conversation:\n" + text}]
 
-    summary = AiReply(client=client, conversation=conversation)
-    return summary
+    
+    return conversation
 
 
 
@@ -36,9 +36,11 @@ def SummarizeLongHistory(conversation, max_messages=10):
 
     
     old_messages = conversation[:-max_messages]
-    summary_text = summarize_messages(old_messages)
+    return conversation
+
+    # summary_text = summarize_messages(old_messages,)
     
-    return [{"role": "system", "content": f"Summary of previous conversation: {summary_text}"}] + conversation[-max_messages:]
+    # return [{"role": "system", "content": f"Summary of previous conversation: {summary_text}"}] + conversation[-max_messages:]
 
 
 
