@@ -27,3 +27,32 @@ def ConversationHistory(session_id, container, user_message):
     return conversation,doc_id
 
 
+
+
+def PromoteDenoteUsers(UserContainer, emails, Role):
+    try:
+        print("1111111111111111111111111111")
+        user = UserContainer.read_item(item=emails, partition_key=emails)
+        # print("User found:", user)
+        print("22222222222222222222222222222222222")
+
+        # Update the role
+        user["role"] = Role
+        print("333333333333333333333333333333333333")
+
+        # Replace the item in CosmosDB
+        UserContainer.replace_item(item=emails, body=user)
+        print("User role updated.")
+
+        return f"The user has successfully been set to {Role}"
+
+    
+        
+    except Exception as e:
+        print("Unexpected error:", e)
+        return f"Failed to update user role: {e}"
+
+def DeleteUser(UserContainer, email):
+    UserContainer.delete_item(item=email)
+    return "The User has sucessfully been deleted!!"
+
