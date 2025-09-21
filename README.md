@@ -40,7 +40,7 @@ This document describes the architecture, data flow, and setup instructions for 
 ---
 
 ## 3. Architecture Diagram
-![Chatbot Architecture](/Assets/V1.3.jpg) 
+![Chatbot Architecture](/Assets/V1.33.jpg) 
 
 
 ---
