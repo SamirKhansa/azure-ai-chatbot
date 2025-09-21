@@ -42,15 +42,32 @@ def AiReply(client, conversation, context=None):
 
 
 
-def ReplyToUser(ai_message, session_id, conversation_history):
+def ReplyToChat(ai_message, session_id, conversation_history, audio_base64):
     return func.HttpResponse(
         json.dumps({
             "sessionId": session_id,
             "reply": ai_message,
-            "history": conversation_history
+            "history": conversation_history,
+            "audioBase64":audio_base64
         }),
         mimetype="application/json"
     )
+
+def ReplyToAdmin(response_data):
+    return func.HttpResponse(
+        json.dumps(response_data),  
+        mimetype="application/json",
+        status_code=response_data.get("Status", 200)
+    )
+
+def SendReply(Message):
+    return func.HttpResponse(
+        json.dumps({
+            "Message":Message
+        }),
+        mimetype="application/json"
+    )
+
 
 
 def TextEmbedding(EmbeddingClient, message):
