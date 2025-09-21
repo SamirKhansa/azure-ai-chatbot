@@ -1,95 +1,124 @@
 from keys import GPT4O_KEY,EMBEDDING_KEY, GPT4O_VERSION, EMBEDDING_VERSION, EMBEDDING_ENDPOINT, GPT4O_ENDPOINT
 from config import get_client, get_CosmosDB, SearchClient1, SpeechClient, DIClient
 import azure.functions as func
-from helpers.ErrorHandling import UserMessageError, SystemError
-from Services.OpenAiServices import AiReply, ReplyToUser, TextEmbedding, ChunkDocumentEmbeddings
-from helpers.MessageFormatter import FormatConversation, CreateNewId, AddingRefrencesToAiMessage,chunkText
-from Services.CosmosDbServices import SaveConversation, ConversationHistory
-from Services.AiSearchServices import RetreiveRelevantChunks,UploadingDocuments
-from Services.SpeechAPI import text_to_speech, speech_to_text
+from helpers.ErrorHandling import SystemError
+from Services.OpenAiServices import SendReply
+from Services.AiSearchServices import DeletingDocument
 
-from Services.DocumentIntelligence import extract_text_with_read
+from Services.CosmosDbServices import PromoteDenoteUsers, DeleteUser
+from Controllers.Chat import ChatBot
+from Controllers.Admin import UploadingDocuments
+from requests_toolbelt.multipart import decoder
+
+from Controllers.Authentication import LogIn, SignUp
+
+
 ChatContainer = get_CosmosDB(container_name="Sessions", partitionKey="/sessionId")  
+UserContainer = get_CosmosDB(container_name="Users", partitionKey="/UserId")  
 search_client=SearchClient1()
 speechClient=SpeechClient()
 
 GPT4oClient = get_client(KEY=GPT4O_KEY,ENDPOINT=GPT4O_ENDPOINT, VERSION=GPT4O_VERSION )
 EmbeddingClient=get_client(KEY=EMBEDDING_KEY, VERSION=EMBEDDING_VERSION, ENDPOINT=EMBEDDING_ENDPOINT)
 
-DIClient = DIClient()
+DIClients = DIClient()
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
+    
+    print("0")
+    
     try:
-        
-        req_body = req.get_json()
-        print("Keys in request body:", list(req_body.keys()))
-        user_message = req_body.get("message")
-        audio_base64 = req_body.get("audioBase64")
-        session_id = req_body.get("sessionId")
         print("1")
-
-          
-        if audio_base64:
-            print("2")
-            user_message=speech_to_text(audio_base64, speechClient)
+        content_type = req.headers.get("content-type", "")
+        if "multipart/form-data" in content_type:
+            print("============================================================================")
+            body = req.get_body()
             
-        if not user_message:
-            print("My fault")
-            return UserMessageError()
+            print("3")
+            multipart_data = decoder.MultipartDecoder(body, content_type)
 
-        if user_message.strip().lower() in ['exit', 'quit', 'bye']:
-            return ReplyToUser("Goodbye! Have a nice day 🙂")
+            uploaded_file = None
+            resource = None
+            Type=None
+            UploadedBy=None
+            DocumentName=None
 
-        if not session_id:
-            session_id = CreateNewId()
-        print("2")
-        
-
-        conversation, document_id = ConversationHistory(session_id=session_id, container=ChatContainer, user_message=user_message)
-        
-        
-        
-        query_embedding = TextEmbedding(EmbeddingClient=EmbeddingClient, message=user_message)
-        
-        results = RetreiveRelevantChunks(search_client=search_client,query_embedding=query_embedding, top_k=3)
-        
-        
-
-
-        
-        retrieved_texts = [result["Content"] for result in results]
-        
-        context_prompt = "\n\n".join(retrieved_texts)
-        
-
-        ai_message = AiReply(client=GPT4oClient, conversation=conversation, context=context_prompt)
-        audio_base64=text_to_speech(ai_message, speechClient)
-        
-        ai_message=AddingRefrencesToAiMessage(results=results, ai_message=ai_message)
-       
+            # Loop through each part
+            for part in multipart_data.parts:
+                content_disposition = part.headers.get(b'Content-Disposition', b'').decode()
+                if 'name="file"' in content_disposition:
+                    uploaded_file = part.content
+                if 'name="Resource"' in content_disposition:
+                    resource = part.content.decode()
+                if('name="Type"' in content_disposition):
+                    Type=part.content.decode()
+                if('name="UploadedBy"' in content_disposition):
+                    UploadedBy=part.content.decode()
+                if('name="name"' in content_disposition):
+                    DocumentName=part.content.decode()
 
 
+            if not uploaded_file:
+                return func.HttpResponse("No file uploaded", status_code=400)
+
+            if not resource:
+                resource = "Unknown Resource"
+            UploadingDocuments(uploaded_file, resource,Type,UploadedBy, DocumentName, DIClients, EmbeddingClient, search_client)
+            return SendReply("File Uploaded Sucessfully")
+    
+        req_body = req.get_json()
+        route=req.route_params.get('route','')
         
-        conversation.append({"role": "bot", "Content": ai_message})
+        print("route")
         
-        SaveConversation(ChatContainer, document_id, session_id, conversation)
+        if(route=='Chat'):
+            return ChatBot(req_body ,EmbeddingClient, GPT4oClient, speechClient, search_client, ChatContainer)
+        elif(route=="Client Uploading document/image"):
+            return
+        elif(route=="Promote" or route=="Denote"):
+            print("i am correct route ",route)
+            if(route=="Promote"):
+                Role="Admin"
+            else:
+                Role="User"
+            print("email will be printed soon")
+            email=req_body.get("email")
+            print("I am Role ",Role," Now email ",email)
+            Message=PromoteDenoteUsers( UserContainer=UserContainer, emails=email, Role=Role)
+            print("Now the message ",Message)
+            return SendReply(Message=Message)
         
-        conversation_history = FormatConversation(conversation)
+        elif(route=="DeleteUser"):
+            return SendReply(DeleteUser(UserContainer=UserContainer, email=req_body.get("email")))
+        elif(route=="Clear Conversation"):
+            return
+        
+        elif(route=="LogIn"):
+            return LogIn(UserContainer, req_body, search_client)
+        elif(route=="SignUp"):
+            return SignUp(UserContainer, req_body)
+        
+        elif(route=="DeleteDocument"):
+            DeletingDocument(req_body=req_body, search_client=search_client)
+            return SendReply("Deletion is Sucessfull total number of chunks deleted is ")
         
         
+        elif(route=="Face Recognition"):
+            return
         
 
-        return ReplyToUser(ai_message, session_id, conversation_history,audio_base64)
+
+
+
+
+
+        
 
     except Exception as e:
         return SystemError(e)
     
 
-def UploadingDocuments(file_path, Resource):
-    document_text=extract_text_with_read(file_path, locale="en")
-    chunks = chunkText(document_text)
-    embeddings = ChunkDocumentEmbeddings(chunks, EmbeddingClient)
-    UploadingDocuments(search_client,chunks, embeddings, Resource)
+
 
 
 
