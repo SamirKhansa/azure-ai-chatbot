@@ -1,9 +1,9 @@
 import azure.functions as func
 import json
-def UserMessageError():
+def UserMessageError(Message, statuscode):
     return func.HttpResponse(
-        json.dumps({"error": "Please provide a 'message' in JSON"}),
-        status_code=400,
+        json.dumps({"error": Message}),
+        status_code=statuscode,
         mimetype="application/json"
 )
 
