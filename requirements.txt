@@ -5,3 +5,6 @@ requests
 azure-ai-documentintelligence
 azure-search-documents
 azure-cognitiveservices-speech
+python-multipart
+requests-toolbelt
+bcrypt
