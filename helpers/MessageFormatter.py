@@ -78,3 +78,79 @@ def AddingRefrencesToAiMessage(results, ai_message):
         return f"{ai_message}\n\nReferences:\n" + "\n".join(sources_list)
     else:
         return ai_message
+    
+
+
+def AttributesExtraction(multipart_data, file_bytes, resource, Type, UploadedBy, DocumentName):
+    for part in multipart_data.parts:
+        content_disposition = part.headers.get(b'Content-Disposition', b'').decode()
+        if 'name="file"' in content_disposition:
+            file_bytes = part.content
+        if 'name="resource"' in content_disposition:
+            resource = part.content.decode()
+        if('name="Type"' in content_disposition):
+            Type=part.content.decode()
+        if('name="UploadedBy"' in content_disposition):
+            UploadedBy=part.content.decode()
+        if('name="name"' in content_disposition):
+            DocumentName=part.content.decode()
+    
+
+    if not resource:
+        resource = "Unknown Resource"
+    
+    if not file_bytes:
+        raise ValueError("No file provided")
+    return file_bytes, resource, Type, UploadedBy, DocumentName
+
+
+
+def PromptForImageGeneration():
+    return [
+        {
+            "type": "function",
+            "function": {
+                "name": "GenerateChessImage",
+                "description": "Generate an image of a chess opening or position.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "opening_name": {
+                            "type": "string",
+                            "description": (
+                                "The name of the chess opening or position, "
+                                "e.g. 'Queen's Gambit Accepted', optionally include piece positions "
+                                "in algebraic notation, e.g. 'd4,d5,c4'."
+                            )
+                        }
+                    },
+                    "required": ["opening_name"]
+                }
+            }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "SuggestStrategy",
+                "description": "Suggest a chess strategy tip based on the player's skill level.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "level": {
+                            "type": "string",
+                            "enum": ["beginner", "intermediate", "advanced"],
+                            "description": "The skill level of the player."
+                        }
+                    },
+                    "required": ["level"]
+                }
+            }
+        }
+    ]
+
+
+
+
+
+
+
