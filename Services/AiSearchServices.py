@@ -1,3 +1,4 @@
+import uuid
 def RetreiveRelevantChunks(search_client, query_embedding, top_k=3):
     results = search_client.search(
         search_text="*", 
@@ -19,7 +20,7 @@ def UploadingDocumentsAiSearch(search_client, chunks, embeddings, Resource,Type,
     search_documents = []
     for i, chunk in enumerate(chunks):
         doc = {
-            "id": str(i),  # unique ID per chunk
+            "id":str(uuid.uuid4()),  # unique ID per chunk
             "Content": chunk, 
             "resource": Resource ,
             "Type":Type,
@@ -35,6 +36,7 @@ def UploadingDocumentsAiSearch(search_client, chunks, embeddings, Resource,Type,
 def DeletingDocument(req_body, search_client):
     
     resource=req_body.get("resource")
+    DocumentName=req_body.get("DocumentName")
     results = search_client.search(
         search_text="*",
         filter=f"resource eq '{resource}'"
