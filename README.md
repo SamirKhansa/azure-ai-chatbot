@@ -6,19 +6,18 @@
 This document describes the architecture, data flow, and setup instructions for the Azure OpenAI chatbot implementation. The chatbot is capable of:
 
 - Maintaining persistent conversation history in Cosmos DB.
-
 - Retrieving information from documents using RAG (Retrieval-Augmented Generation).
-
 - Processing and extracting content from PDFs, text files, and images using Azure Document Intelligence.
-
 - Performing vector similarity search with Azure AI Search to retrieve the most relevant chunks.
-
 - Accepting voice input via the browser microphone, processed through Azure Speech-to-Text.
-
-- Returning audio from the AI message, processed through Azure text-to-Speech.
-
+- Returning audio from the AI message, processed through Azure Text-to-Speech.
 - Operating with a specific role or prompt to guide responses.
-
+- Allowing users to **sign up** and **login**, storing credentials in Cosmos DB.
+- Supporting **Clear Chat** to reset conversation history per session.
+- Uploading documents to a separate container in Cosmos DB, chunking, and storing in Azure AI Search.
+- Viewing and deleting documents from both Cosmos DB and Azure AI Search.
+- Retrieving all registered users from a dedicated Cosmos DB container.
+- Generating images using **DALL·E 3** when a user requests an image.
 - Being deployed to Azure for cloud accessibility.
 
 ---
@@ -26,70 +25,64 @@ This document describes the architecture, data flow, and setup instructions for 
 ## 2. Resources Used
 | Resource | Description |
 |----------|-------------|
-| **Resource Group** | A container that holds all project resources, making them easier to manage and organize. |
-| **Function App** | Hosts Python code, accessible via HTTP requests, allowing the chatbot to run independently of a local machine. |
-| **CosmosDB** | Hosts chat history that is divided by every user unique session id. Furthermore, this database also hosts the documents with their embeddings.   |
-| **Azure AI Foundary Resource** | Contains the GPT-4o deployment, gpt text-embedding and handles AI processing. |
-| **GPT-4o Deployment** | AI model that generates responses based on user input and developer-defined prompts. |
-| **text-embedding-3-small** | AI model that generates an embedding  based on the text provided. |
-| **Azure Document Intelligence** | Extracts text from PDFs, scanned documents, and images, preparing them for chunking and embedding. |
-| **Azure AI Search** | Stores document chunks and embeddings, supports similarity (vector) search to retrieve relevant knowledge. |
-| **Azure Speech Service** | Converts audio input (from the user’s microphone) into text for further processing. Furthermore, this service is also converting the ai message into an audio base 64. |
-
+| **Resource Group** | Container for all project resources. |
+| **Function App** | Hosts Python code accessible via HTTP requests, running chatbot logic and AI integrations. |
+| **CosmosDB** | Stores chat history, user data, and uploaded documents (different containers for sessions, users, documents). |
+| **Azure AI Foundry Resource** | Hosts GPT-4o and text-embedding models, manages AI processing. |
+| **GPT-4o Deployment** | Generates responses to user queries using prompts and retrieved document chunks. |
+| **text-embedding-3-small** | Converts text (user messages or document chunks) into embeddings for vector similarity search. |
+| **Azure Document Intelligence** | Extracts text from PDFs, scanned documents, and images for chunking and embeddings. |
+| **Azure AI Search** | Stores document chunks and embeddings; supports vector similarity search. |
+| **Azure Speech Service** | Converts audio input to text and generates audio output from AI messages. |
+| **OpenAI / DALL·E 3** | Generates images based on user prompts through Function calling. |
 
 ---
 
 ## 3. Architecture Diagram
-![Chatbot Architecture](/Assets/V1.33.jpg) 
-
+![Chatbot Architecture](/Assets/V1.44.jpg)
 
 ---
 
 ## 4. Data Flow and Component Interactions
-1. **User → Function App:** The user sends an HTTP request containing their message. Furthermore, the user is also capable of recording an audio instead of writing a message, that is sent to the function app as base 64.
-2. **Function App → Azure Speech Service:** If the user decided to record an audio, this audio of base 64 is then sent to Azure Speech Service to extract the text from the audio.
-3. **Function APP -> CosmosDb Resource:** Retrieves previous chat history for the session.
-4. **Function App -> Document Intelligence:**The Admin is capable of uploading new documents, (PDFs, images, handwritten notes), Document Intelligence extracts and cleans the text.
-5. **Function App:** The script then divides the text retreived from document intelligence into multiple chunks.
-6. **Function App → Embeddings Model (text-embedding-3-small):** Every chunk are converted into embeddings using text-embedding-3-small.
-7. **Function App → Azure AI Foundary Resource:** The Function App hosts the code, including prompts that instruct GPT-4o how to respond. Furhtermore, Azure AI Foundary has also deployed a model called text-embedding-3-small to turn text into embedding.  
-8. **Azure AI Foundary → text-embedding-3-small:** text-embedding-3-small processes the user message and transforms it into an embedding to be used with the embedding of the chunks. This model is also used when a new document is saved, divided into chunks, turned into an embedding and saved to CosmosDB.  
-9. **Azure AI Foundary- AI Search**: The script uses AI Search to retreive the most relavent chunks of document with the prespective of the user question.
-10. **Azure AI Foundary → GPT-4o Deployment:** GPT-4o processes the user message, provided chunks of document and prompt to generate a response.  
-11. **GPT-4o Deployment → Function App:** The generated response is sent back to the Function App.
-12. **Function App → Azure Speech Service:** The generated response is sent to Azure Speech service to transform the text into an audio of base 64.
-12. **GPT-4o Deployment → Chosmos Db:** The generated response is saved in Cosmos DB chatHistory of the user .  
-13. **Function App → User:** The Function App returns the response to the user immediately.
+1. **User → Function App:** Sends a message via HTTP POST or audio in base64.
+2. **Function App → Azure Speech Service:** Converts audio to text if input is audio.
+3. **Function App → Cosmos DB:** Retrieves previous chat history for the session and/or user login data.
+4. **Function App → Document Intelligence:** Admin uploads documents (PDF, images, text); text is extracted.
+5. **Function App:** Chunks extracted text into smaller pieces.
+6. **Function App → text-embedding-3-small:** Generates embeddings for document chunks and user queries.
+7. **Function App → Azure AI Search:** Stores document chunks with embeddings; retrieves relevant chunks for queries.
+8. **Function App → GPT-4o Deployment:** Generates responses using retrieved document chunks, user message, and system prompts.
+9. **GPT-4o → Function App:** Returns AI-generated text response.
+10. **Function App → Azure Speech Service:** Converts AI text response to audio (base64) if requested.
+11. **Function App → Cosmos DB:** Saves chat history.
+12. **Function App → User:** Returns text/audio response.
+13. **Function App → Cosmos DB / AI Search:** Handles **ViewDocument** and **DeleteDocument** requests, updating both Cosmos DB and AI Search.
+14. **Function App → Cosmos DB:** Handles **user management** for signup, login, and retrieval of all users.
+15. **Function App → DALL·E 3:** Generates images on user request via Function calling and returns the image URL/base64.
 
 ---
-## 5.Features Implemented
-- Persistent chat history stored in Cosmos DB
 
-- Clear conversation or session restart command support
+## 5. Features Implemented
+- Persistent chat history stored in Cosmos DB.
+- Clear chat / session reset command support.
+- Prompt customization for system role.
+- RAG knowledgebase for document-based answers.
+- Vector similarity search for accurate retrieval.
+- References to original document sources in chatbot replies.
+- Speech-to-Text voice input support.
+- Text-to-Speech voice output support.
+- **User authentication:** Login and Signup stored in Cosmos DB.
+- **Document management:** Upload, view, and delete documents in Cosmos DB and AI Search.
+- **Function calling with DALL·E 3** to generate images on user request.
+- Deployed solution in Azure for live access.
 
-- Prompt customization for system role (topic-specific responses)
-
-- RAG knowledgebase for document-based answers
-
-- Vector similarity search for accurate retrieval
-
-- References to original document sources in chatbot replies
-
-- Speech-to-Text voice input support
-
-- Text-to-Speech voice output support
-
-- Deployed solution in Azure for live access
---
+---
 
 ## 6. Future Updates
-- Enhanced conversational flows and multi-turn context summarization
-
-- Expanded knowledgebase with more documents
-
-- Integration of multi-modal input (images, audio)
-
-- Analytics dashboard to monitor chatbot usage
+- Enhanced conversational flows and multi-turn context summarization.
+- Expanded knowledgebase with more documents.
+- Multi-modal input and output (images, audio, text).
+- Analytics dashboard for monitoring usage and user engagement.
 
 ---
 
@@ -104,25 +97,26 @@ This document describes the architecture, data flow, and setup instructions for 
 - Git  
 
 ### Azure Portal Setup
-1. Choose a subscription plan.  
-2. Create a **Resource Group**. Ensure all resources are in the same region.  
-3. Create an **Azure OpenAI resource** in the same Resource Group and region.  
-4. Open **Azure AI Foundry** to deploy the GPT-4o model and text-embedding-3-small.  
-5. Create an Azure Document Intelligence resource for extracting text from PDFs, images, and handwritten files.
-6. Create an Azure AI Search resource (Basic or Standard tier, not Free) with vector search enabled.
-7. Define an index with fields like:
-    - id (Edm.String, key)
-    - Content (Edm.String, retrievable)
-    - resource (Edm.String, retrievable)
-    - Embeddings (Collection(Edm.Single), vector field)
-8. Create a Cosmos DB resource with database name ChatBot02 and add one container called Sessions with partition key /sessionId.  
-
+1. Create a **Resource Group**.
+2. Create an **Azure OpenAI** resource and deploy GPT-4o & text-embedding-3-small.
+3. Create an **Azure Document Intelligence** resource.
+4. Create an **Azure AI Search** resource with vector search enabled.
+5. Create a **Cosmos DB** database with multiple containers:
+   - `Sessions` → stores chat history per session.
+   - `Users` → stores registered users and login credentials.
+   - `Documents` → stores uploaded documents and embeddings.
+6. Define AI Search index with fields:
+   - `id` (Edm.String, key)
+   - `Content` (Edm.String, retrievable)
+   - `resource` (Edm.String, retrievable)
+   - `Embeddings` (Collection(Edm.Single), vector field)
 
 ### Local Setup
-1. Clone the repository:
-```
+1. Clone repository:
+```bash
 git clone https://github.com/SamirKhansa/azure-ai-chatbot
 cd azure-ai-chatbot
+
 
 ```
 2. Install dependencies
@@ -135,7 +129,7 @@ func start
 ```
 4. Test the function using CLI (curl) or Postman with the endpoint provided by func.
 
-## 7. API Configuration
+## 8. API Configuration
 
 | Item | Details |
 |------|---------|
@@ -161,7 +155,7 @@ curl -X POST "https://<your-function-app>.azurewebsites.net/api/ChatbotFunction"
   "reply": "The \"most favorite\" chess opening can vary depending on the player's style, level of experience, and even trends in the chess world. However, some openings are consistently popular across different levels of play due to their strategic richness, flexibility, and proven effectiveness. Below are some of the most commonly favored openings:\n\n---\n\n### **For White:**\n1. **Ruy-Lopez (Spanish Opening)**:  \n   - Moves: 1.e4 e5 2.Nf3 Nc6 3.Bb5  \n   - Why it's popular: The Ruy-Lopez is one of the oldest and most respected openings in chess. It focuses on rapid development and central control while applying early pressure on Black's position. It offers both sharp and strategic lines, making it appealing to players of all styles.\n\n2. **Italian Game**:  \n   - Moves: 1.e4 e5 2.Nf3 Nc6 3.Bc4  \n   - Why it's popular: Known for its straightforward development and early focus on the center, the Italian Game is ideal for beginners and intermediate players. It can lead to both aggressive attacks and slower, maneuvering battles.\n\n3. **Queen's Gambit**:  \n   - Moves: 1.d4 d5 2.c4  \n   - Why it's popular: The Queen's Gambit is a classical opening that emphasizes central control and long-term positional play. It remains a favorite at all levels, including world championship matches, due to its strategic depth and flexibility.\n\n4. **London System**:  \n   - Moves: 1.d4 followed by 2.Nf3 and 3.Bf4  \n   - Why it's popular: The London System is easy to learn and avoids heavy theoretical preparation. It offers a solid pawn structure and straightforward development, making it a favorite among club players.\n\n5. **English Opening**:  \n   - Moves: 1.c4  \n   - Why it's popular: The English Opening allows\n\nReferences:\nhttps://en.wikipedia.org/wiki/Chess_opening?utm_source=chatgpt.com"
 }
 ```
-### 8. Screenshots
+### 9. Screenshots
 - AI response
 ![AI response](/Assets/ChessOpenings.JPG)
 - User Input Irrelivant information
