@@ -1,6 +1,6 @@
 from openai import AzureOpenAI
 
-from keys import COSMOS_ENDPOINT, COSMOS_KEY, DATABASE_NAME,SEARCH_ENDPOINT,SEARCH_KEY,INDEX_NAME, DI_ENDPOINT, DI_KEY, SPEECH_KEY, SPEECH_ENDPOINT, SPEECH_REGION
+from keys import COSMOS_ENDPOINT, COSMOS_KEY, DATABASE_NAME,SEARCH_ENDPOINT,SEARCH_KEY,INDEX_NAME, DI_ENDPOINT, DI_KEY, SPEECH_KEY, SPEECH_ENDPOINT, SPEECH_REGION, DALL_E_3_KEY, DALL_E_3_ENDPOINT
 from azure.cosmos import CosmosClient, PartitionKey
 
 from azure.core.credentials import AzureKeyCredential
@@ -25,10 +25,8 @@ def get_client(KEY,VERSION,ENDPOINT):
 
 
 def get_CosmosDB(container_name, partitionKey):
-    
     client=CosmosClient(COSMOS_ENDPOINT, COSMOS_KEY)
     database = client.create_database_if_not_exists(id=DATABASE_NAME)
-    
     return  database.create_container_if_not_exists(
         id=container_name,
         partition_key=PartitionKey(path=partitionKey),
@@ -60,3 +58,12 @@ def DIClient():
 def SpeechClient():
     speech_config = speechsdk.SpeechConfig(subscription=SPEECH_KEY, region=SPEECH_REGION)
     return speech_config
+
+
+
+def DallE3Client():
+    return AzureOpenAI(
+        api_key=DALL_E_3_KEY,
+        api_version="2024-02-01",
+        azure_endpoint=DALL_E_3_ENDPOINT
+    )
