@@ -6,10 +6,11 @@ from Services.OpenAiServices import SendReply, ReplyToAdmin
 
 
 
+
 from Services.CosmosDbServices import PromoteDenoteUsers, DeleteUser, RetreivingDocuments, ClearHistory
 from Controllers.Chat import ChatBot
 from Controllers.Admin import UploadingDocuments, DeleteDocument
-
+from Services.RealTimeChat import RealtimeChatHandler
 
 
 from Controllers.Authentication import LogIn, SignUp
@@ -64,6 +65,11 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
             return SendReply(DeleteDocument(req_body, DocumentContainer, search_client))
         elif(route=="ClearHistory"):
             return SendReply(ClearHistory(ChatContainer, req_body.get("SessionId")))
+        elif(route=="UserImageUpload"):
+            print("Sucessfullllllllllll")
+            return SendReply("Worked")
+        
+        
         return SendReply("No message has returned")
         
         
