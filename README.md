@@ -9,8 +9,9 @@ This document describes the architecture, data flow, and setup instructions for 
 - Retrieving information from documents using RAG (Retrieval-Augmented Generation).
 - Processing and extracting content from PDFs, text files, and images using Azure Document Intelligence.
 - Performing vector similarity search with Azure AI Search to retrieve the most relevant chunks.
-- Accepting voice input via the browser microphone, processed through Azure Speech-to-Text.
-- Returning audio from the AI message, processed through Azure Text-to-Speech.
+- Accepting **voice input via the browser microphone**, processed through Azure Speech-to-Text.
+- Returning **audio from AI messages**, processed through Azure Text-to-Speech.
+- Supporting **real-time speech-to-speech conversations** using GPT Realtime API (low-latency streaming audio in and out).
 - Operating with a specific role or prompt to guide responses.
 - Allowing users to **sign up** and **login**, storing credentials in Cosmos DB.
 - Supporting **Clear Chat** to reset conversation history per session.
@@ -20,6 +21,7 @@ This document describes the architecture, data flow, and setup instructions for 
 - Generating images using **DALL·E 3** when a user requests an image.
 - Being deployed to Azure for cloud accessibility.
 
+
 ---
 
 ## 2. Resources Used
@@ -28,8 +30,9 @@ This document describes the architecture, data flow, and setup instructions for 
 | **Resource Group** | Container for all project resources. |
 | **Function App** | Hosts Python code accessible via HTTP requests, running chatbot logic and AI integrations. |
 | **CosmosDB** | Stores chat history, user data, and uploaded documents (different containers for sessions, users, documents). |
-| **Azure AI Foundry Resource** | Hosts GPT-4o and text-embedding models, manages AI processing. |
+| **Azure AI Foundry Resource** | Hosts GPT-4o, GPT-Realtime, and text-embedding models, manages AI processing. |
 | **GPT-4o Deployment** | Generates responses to user queries using prompts and retrieved document chunks. |
+| **gpt-realtime Deployment** | Handles real-time speech-to-speech interactions via WebSocket streaming. |
 | **text-embedding-3-small** | Converts text (user messages or document chunks) into embeddings for vector similarity search. |
 | **Azure Document Intelligence** | Extracts text from PDFs, scanned documents, and images for chunking and embeddings. |
 | **Azure AI Search** | Stores document chunks and embeddings; supports vector similarity search. |
@@ -39,7 +42,7 @@ This document describes the architecture, data flow, and setup instructions for 
 ---
 
 ## 3. Architecture Diagram
-![Chatbot Architecture](/Assets/V1.44.jpg)
+![Chatbot Architecture](/Assets/V1.6.jpg)
 
 ---
 
@@ -52,13 +55,15 @@ This document describes the architecture, data flow, and setup instructions for 
 6. **Function App → text-embedding-3-small:** Generates embeddings for document chunks and user queries.
 7. **Function App → Azure AI Search:** Stores document chunks with embeddings; retrieves relevant chunks for queries.
 8. **Function App → GPT-4o Deployment:** Generates responses using retrieved document chunks, user message, and system prompts.
-9. **GPT-4o → Function App:** Returns AI-generated text response.
-10. **Function App → Azure Speech Service:** Converts AI text response to audio (base64) if requested.
-11. **Function App → Cosmos DB:** Saves chat history.
-12. **Function App → User:** Returns text/audio response.
-13. **Function App → Cosmos DB / AI Search:** Handles **ViewDocument** and **DeleteDocument** requests, updating both Cosmos DB and AI Search.
-14. **Function App → Cosmos DB:** Handles **user management** for signup, login, and retrieval of all users.
-15. **Function App → DALL·E 3:** Generates images on user request via Function calling and returns the image URL/base64.
+9. **Function App → gpt-realtime Deployment:** Streams user audio to GPT-Realtime via WebSocket, receives real-time audio responses.
+10. **GPT-4o / GPT-Realtime → Function App:** Returns AI-generated text/audio response.
+11. **Function App → Azure Speech Service:** Converts AI text response to audio (base64) if requested.
+12. **Function App → Cosmos DB:** Saves chat history.
+13. **Function App → User:** Returns text/audio response.
+14. **Function App → Cosmos DB / AI Search:** Handles **ViewDocument** and **DeleteDocument** requests, updating both Cosmos DB and AI Search.
+15. **Function App → Cosmos DB:** Handles **user management** for signup, login, and retrieval of all users.
+16. **Function App → DALL·E 3:** Generates images on user request via Function calling and returns the image URL/base64.
+
 
 ---
 
@@ -71,10 +76,12 @@ This document describes the architecture, data flow, and setup instructions for 
 - References to original document sources in chatbot replies.
 - Speech-to-Text voice input support.
 - Text-to-Speech voice output support.
+- **Real-time speech-to-speech** using GPT-Realtime WebSocket streaming.
 - **User authentication:** Login and Signup stored in Cosmos DB.
 - **Document management:** Upload, view, and delete documents in Cosmos DB and AI Search.
 - **Function calling with DALL·E 3** to generate images on user request.
 - Deployed solution in Azure for live access.
+
 
 ---
 
@@ -83,7 +90,6 @@ This document describes the architecture, data flow, and setup instructions for 
 - Expanded knowledgebase with more documents.
 - Multi-modal input and output (images, audio, text).
 - Analytics dashboard for monitoring usage and user engagement.
-
 ---
 
 ## 7. Setup Instructions
