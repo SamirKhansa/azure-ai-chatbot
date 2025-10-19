@@ -12,6 +12,8 @@ from azure.search.documents import SearchClient
 
 import azure.cognitiveservices.speech as speechsdk
 
+import websockets
+
 
 def get_client(KEY,VERSION,ENDPOINT):
     
@@ -67,3 +69,11 @@ def DallE3Client():
         api_version="2024-02-01",
         azure_endpoint=DALL_E_3_ENDPOINT
     )
+
+
+async def GetRealTimeClient(api_key, endpoint, deployment_name, api_version):
+    
+    ws_url = endpoint
+    headers = [("api-key", api_key)]
+    connection = await websockets.connect(ws_url, additional_headers=headers)
+    return connection
