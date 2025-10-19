@@ -30,7 +30,7 @@ def AiReply(client, conversation, context=None, tools=None):
 
     # Send request to GPT
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4o", 
         messages=messages,
         max_tokens=400,
         temperature=0.7,
@@ -40,7 +40,7 @@ def AiReply(client, conversation, context=None, tools=None):
 
     messages = response.choices[0].message
 
-    # Check if GPT wants to call a tool
+   
     print("1")
     # print(messages)
     print("2")
