@@ -17,8 +17,6 @@ def UploadingDocuments(req , content_type,DocumentContainer, DIClient, Embedding
     Type=None
     UploadedBy=None
     DocumentName=None
-
-    # Loop through each part
     
     file_bytes, resource, Type, UploadedBy, DocumentName=AttributesExtraction(multipart_data, file_bytes, resource, Type, UploadedBy, DocumentName)
     
